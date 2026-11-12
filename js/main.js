@@ -51,9 +51,10 @@
   const LBL = { pass: ['PASS', 'TACKLE', 'TACKLE'], thru: ['THRU', 'GK OUT', 'GK OUT'], shoot: ['SHOOT', 'SLIDE', 'DIVE'], trick: ['TRICK', '', ''], swap: ['LOB', 'SWAP', 'SWAP'], pause: '', ok: 'OK', back: 'BACK' };
   const svg = (a, m) => '<svg viewBox="0 0 24 24">' + (Array.isArray(ICON[a]) ? ICON[a][m] : ICON[a]) + '</svg>' + (LBL[a] && (Array.isArray(LBL[a]) ? LBL[a][m] : LBL[a]) ? '<b>' + (Array.isArray(LBL[a]) ? LBL[a][m] : LBL[a]) + '</b>' : '');
   let tMode = 0, lobFill = 0;
+  const DEF_L = { shoot: [0.762, 0.5], thru: [0.884, 0.451], trick: [0.663, 0.652], swap: [0.859, 0.703], pass: [0.749, 0.826] }, DEF_B = 0.9;   // erick's own layout (2026-11-12) is the default
   function applyLayout() {                      // saved button positions (fractions of the screen) and size
     for (const a in tEls) {
-      const el = tEls[a], p = save.layout[a], st = el.style, sc = 'scale(' + save.bsize + ')';
+      const el = tEls[a], p = save.layout[a] || DEF_L[a], st = el.style, sc = 'scale(' + save.bsize + ')';
       if (p && el.classList.contains('g')) { st.left = p[0] * 100 + '%'; st.top = p[1] * 100 + '%'; st.right = st.bottom = 'auto'; st.transform = 'translate(-50%,-50%) ' + sc; }
       else { st.left = st.top = st.right = st.bottom = ''; st.transform = el.classList.contains('g') ? sc : ''; }
     }
@@ -154,8 +155,8 @@
   // saved between sessions: wins per crew, best combo, and the last match settings
   const save = { wins: [0, 0, 0], best: 0, crew: 0, opp: 1, diff: 2, size: 5, court: 1, cam: 0, bsize: 1, layout: {}, keys: {}, pad: {} }, CAMS = [['BROADCAST', 11, 18.5], ['HIGH', 17, 13.5], ['CLOSE', 7.5, 15]], DIFF = ['AVACA', 'SUAVE', 'TRANQUI', 'PONTE PILAS', 'JODIDO'], SKILL = [0.63, 0.7, 0.77, 0.835, 0.9];   // old Easy/Normal/Hard range spread over five levels
   try { Object.assign(save, JSON.parse(localStorage.getItem('futbol1bit') || '{}')); } catch (e) { /* storage unavailable */ }
-  save.keys = Object.assign({}, DEF_K, save.keys); save.pad = Object.assign({}, DEF_P, save.pad); save.court = (save.court | 0) % Arena.VENUES.length; if (!(save.v >= 2)) save.diff = 2; if (!(save.v >= 3)) { save.v = 3; save.court = 1; } if (!(save.lv >= 1)) { save.lv = 1; save.layout = {}; save.bsize = 1; }   // new default button layout (thumb arc): clear old saved positions once   // one-time resets when the defaults changed save.diff = clamp(save.diff | 0, 0, 4); if (![3, 4, 5].includes(save.size)) save.size = 5;
-  save.cam = (save.cam | 0) % 3; save.bsize = +save.bsize || 1; save.layout = save.layout || {};
+  save.keys = Object.assign({}, DEF_K, save.keys); save.pad = Object.assign({}, DEF_P, save.pad); save.court = (save.court | 0) % Arena.VENUES.length; if (!(save.v >= 2)) save.diff = 2; if (!(save.v >= 3)) { save.v = 3; save.court = 1; } if (!(save.lv >= 2)) { save.lv = 2; save.layout = {}; save.bsize = DEF_B; }   // new default button layout (thumb arc): clear old saved positions once   // one-time resets when the defaults changed save.diff = clamp(save.diff | 0, 0, 4); if (![3, 4, 5].includes(save.size)) save.size = 5;
+  save.cam = (save.cam | 0) % 3; save.bsize = +save.bsize || DEF_B; save.layout = save.layout || {};
   const persist = () => { try { localStorage.setItem('futbol1bit', JSON.stringify(save)); } catch (e) { /* ignore */ } };
   persist();                                    // keep the one-time resets above
   function startMatch() {
@@ -178,7 +179,7 @@
     else if (state === 'layout') {              // touch: drag the buttons, stick left / right for size
       const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);
       if (d) { save.bsize = clamp(Math.round((save.bsize + d * 0.1) * 10) / 10, 0.7, 1.4); applyLayout(); }
-      if (I.back) { save.layout = {}; save.bsize = 1; applyLayout(); Snd.menu(); }
+      if (I.back) { save.layout = {}; save.bsize = DEF_B; applyLayout(); Snd.menu(); }
       else if (I.ok) { persist(); Snd.menu(600); ret(); }
     }
     else if (state === 'binds') {
