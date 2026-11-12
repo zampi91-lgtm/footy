@@ -83,6 +83,8 @@
     document.body.appendChild(root); applyLayout();
   }
   addEventListener('touchstart', touchUI, { passive: true });
+  // stop the browser zooming or scrolling the page while playing: iOS ignores the viewport's user-scalable=no, so block the gestures themselves
+  for (const t of ['touchmove', 'touchend', 'gesturestart', 'gesturechange', 'gestureend', 'dblclick', 'contextmenu']) document.addEventListener(t, e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
   function readInput() {
     const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g && g.connected) : null;
     const b = i => !!(gp && gp.buttons[i] && gp.buttons[i].pressed), ax = i => gp && Math.abs(gp.axes[i] || 0) > 0.2 ? gp.axes[i] : 0;
