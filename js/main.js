@@ -59,7 +59,7 @@
   }
   let touch = false; const stick = { id: -1, ox: 0, oy: 0, x: 0, z: 0, prev: 0 };
   function touchUI() {
-    if (touch) return; touch = true;
+    if (touch) return; touch = true; if (!(save.mc >= 1)) { save.mc = 1; save.cam = 2; persist(); }   // phones start on the Close camera (once)
     const root = document.createElement('div'); root.id = 'touch';
     const zone = document.createElement('div'), base = document.createElement('div'), knob = document.createElement('div');
     zone.id = 'tzone'; base.id = 'tbase'; knob.id = 'tknob'; base.appendChild(knob); zone.appendChild(base); root.appendChild(zone);
@@ -149,7 +149,7 @@
     save.best = Math.max(save.best, Math.round(Tricks.best)); persist();
   }
   // saved between sessions: wins per crew, best combo, and the last match settings
-  const save = { wins: [0, 0, 0], best: 0, crew: 0, opp: 1, diff: 2, size: 5, court: 1, cam: 0, bsize: 1, layout: {}, keys: {}, pad: {} }, CAMS = [['BROADCAST', 11, 18.5], ['HIGH', 17, 13.5], ['CLOSE', 7.5, 15]], DIFF = ['AVACA', 'SUAVE', 'TRANQUI', 'PONTE PILAS', 'JODIDO'], SKILL = [0.42, 0.52, 0.63, 0.77, 0.9];
+  const save = { wins: [0, 0, 0], best: 0, crew: 0, opp: 1, diff: 2, size: 5, court: 1, cam: 0, bsize: 1, layout: {}, keys: {}, pad: {} }, CAMS = [['BROADCAST', 11, 18.5], ['HIGH', 17, 13.5], ['CLOSE', 7.5, 15]], DIFF = ['AVACA', 'SUAVE', 'TRANQUI', 'PONTE PILAS', 'JODIDO'], SKILL = [0.63, 0.7, 0.77, 0.835, 0.9];   // old Easy/Normal/Hard range spread over five levels
   try { Object.assign(save, JSON.parse(localStorage.getItem('futbol1bit') || '{}')); } catch (e) { /* storage unavailable */ }
   save.keys = Object.assign({}, DEF_K, save.keys); save.pad = Object.assign({}, DEF_P, save.pad); save.court = (save.court | 0) % Arena.VENUES.length; if (!(save.v >= 2)) save.diff = 2; if (!(save.v >= 3)) { save.v = 3; save.court = 1; } if (!(save.lv >= 1)) { save.lv = 1; save.layout = {}; save.bsize = 1; }   // new default button layout (thumb arc): clear old saved positions once   // one-time resets when the defaults changed save.diff = clamp(save.diff | 0, 0, 4); if (![3, 4, 5].includes(save.size)) save.size = 5;
   save.cam = (save.cam | 0) % 3; save.bsize = +save.bsize || 1; save.layout = save.layout || {};
