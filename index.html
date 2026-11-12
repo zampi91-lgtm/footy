@@ -21,9 +21,10 @@
   /* touch controls: a stick wherever the left thumb lands, buttons under the right thumb */
   #touch { position: fixed; inset: 0; touch-action: none; font: bold 3.6vh/1 monospace; color: var(--fg); }
   #tzone { position: absolute; left: 0; top: 0; width: 45%; height: 100%; }
-  #tbase { position: absolute; left: calc(26vh + env(safe-area-inset-left)); top: calc(100% - 26vh); width: 28vh; height: 28vh; margin: -14vh 0 0 -14vh; border: 0.5vh solid var(--fg); border-radius: 50%; background: rgba(0, 0, 0, 0.3); box-sizing: border-box; pointer-events: none; opacity: 0.35; }
+  #tbase { position: absolute; left: calc(26vh + env(safe-area-inset-left)); top: calc(100% - 26vh); width: 35vh; height: 35vh; margin: -17.5vh 0 0 -17.5vh; border: 0.5vh solid var(--fg); border-radius: 50%; background: rgba(0, 0, 0, 0.3); box-sizing: border-box; pointer-events: none; opacity: 0.35; }
   #tknob { position: absolute; left: 50%; top: 50%; width: 12vh; height: 12vh; margin: -6vh 0 0 -6vh; border-radius: 50%; background: var(--fg); }
   .tb { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5vh; border: 0.6vh solid var(--fg); border-radius: 50%; background: rgba(0, 0, 0, 0.55); box-sizing: border-box; touch-action: none; }
+  #t-swap svg, #t-swap b { mix-blend-mode: difference; color: #fff; }
   .tb.on { background: var(--fg); color: var(--bg); }
   .tb b { font: bold 2.2vh/1 monospace; letter-spacing: 0.2vh; pointer-events: none; }
   .tb svg { width: 48%; height: 48%; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
