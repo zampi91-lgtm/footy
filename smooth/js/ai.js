@@ -147,6 +147,11 @@ const AI = (() => {
   A.step = (dt, players, me, time) => {
     all = players;
     const B = Ball, own = B.owner, poss = own ? own.team : -1, chaser = [null, null];
+    if (A.float && own && own.gk && own.x * (own.team ? -1 : 1) > -Arena.HL / 2) {   // floating goalie has carried the ball halfway up their own half:
+      const gx = (own.team ? 1 : -1) * Arena.HL; let bp = null, bd = 99;                // the teammate nearest the goal drops in as the new goalie and they trade roles
+      for (const p of players) if (p.team === own.team && p !== own && p !== me && up(p)) { const d = Math.hypot(p.x - gx, p.z); if (d < bd) { bd = d; bp = p; } }
+      if (bp) { own.role = bp.role; own.gk = false; bp.role = 'gk'; bp.gk = true; A.swaps = (A.swaps || 0) + 1; }
+    }
     for (const t of [0, 1]) {                   // one player per team goes to the ball when their team does not have it
       if (poss === t) continue;
       if (!own && B.passTo && B.passTo.team === t && up(B.passTo)) { chaser[t] = B.passTo; continue; }
