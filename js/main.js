@@ -137,7 +137,7 @@
   const say = (t, d = 2) => { message = t; msgT = d; };
   // match: first to 5 goals, or whoever leads after 4 minutes; a tie goes to next-goal-wins overtime
   const GOALS = 5, LENGTH = 240;
-  let state = 'title', attract = true, sel = 0, helpTab = 0, bindTab = 0, grab = false, helpFrom = 'title', clock = LENGTH, ot = false, ending = false, crowdT = 0, stats = { hypeGoals: 0, goals: {} };
+  let state = 'title', attract = true, sel = 0, helpTab = 0, bindTab = 0, grab = false, helpFrom = 'title', retSel = 0, optFrom = 'title', clock = LENGTH, ot = false, ending = false, crowdT = 0, stats = { hypeGoals: 0, goals: {} };
   function newMatch() {
     score[0] = score[1] = 0; clock = LENGTH; ot = false; ending = false; stats = { hypeGoals: 0, goals: {} };
     Tricks.reset(); if (!attract) state = 'play'; msgT = 0; kickoff(0);
@@ -163,12 +163,20 @@
   function toTitle() { attract = true; demo = true; state = 'title'; sel = 0; AI.skill = 1; setSize(5); newMatch(); }
   function menus() {
     const nav = n => { if (I.up) { sel = (sel + n - 1) % n; Snd.menu(); } if (I.down) { sel = (sel + 1) % n; Snd.menu(); } };
-    if (state === 'title') { nav(4); if (I.ok) { Snd.menu(600); if (sel === 0) { state = 'setup'; sel = 5; } else if (sel === 1) { state = 'help'; helpFrom = 'title'; } else if (sel === 2) { state = touch ? 'layout' : 'binds'; helpFrom = 'title'; sel = 0; } else { save.cam = (save.cam + 1) % 3; persist(); } } }
+    const go = (to, from, back) => { state = to; helpFrom = from; retSel = back; sel = 0; };   // open a sub-menu, remember where BACK returns to
+    const ret = () => { state = helpFrom; sel = retSel; if (state === 'options') helpFrom = optFrom, retSel = optFrom === 'title' ? 2 : 3; };
+    if (state === 'title') { nav(3); if (I.ok) { Snd.menu(600); if (sel === 0) { state = 'setup'; sel = 4; } else if (sel === 1) go('help', 'title', 1); else { optFrom = 'title'; go('options', 'title', 2); } } }
+    else if (state === 'options') {             // camera + controls, shared by the title and pause menus
+      nav(3); const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);
+      if (d && sel === 0) { save.cam = (save.cam + d + 3) % 3; persist(); Snd.menu(); }
+      if (I.back) { Snd.menu(); ret(); }
+      else if (I.ok) { Snd.menu(600); if (sel === 0) { save.cam = (save.cam + 1) % 3; persist(); } else if (sel === 1) go(touch ? 'layout' : 'binds', 'options', 1); else ret(); }
+    }
     else if (state === 'layout') {              // touch: drag the buttons, stick left / right for size
       const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);
       if (d) { save.bsize = clamp(Math.round((save.bsize + d * 0.1) * 10) / 10, 0.7, 1.4); applyLayout(); }
       if (I.back) { save.layout = {}; save.bsize = 1; applyLayout(); Snd.menu(); }
-      else if (I.ok) { persist(); Snd.menu(600); state = helpFrom; sel = 0; }
+      else if (I.ok) { persist(); Snd.menu(600); ret(); }
     }
     else if (state === 'binds') {
       if (grab) {                               // waiting for the new key or button
@@ -178,21 +186,26 @@
         if (!grab) { persist(); Snd.menu(600); }
       } else {
         nav(ACTS.length + 1); if (I.left || I.right) { bindTab = 1 - bindTab; Snd.menu(); }
-        if (I.back) { state = helpFrom; sel = 0; }
+        if (I.back) ret();
         else if (I.ok) { Snd.menu(600); if (sel === ACTS.length) { if (bindTab) save.pad = Object.assign({}, DEF_P); else save.keys = Object.assign({}, DEF_K); persist(); } else grab = true; }
       }
     }
     else if (state === 'setup') {
-      nav(6); const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);
-      if (d) { Snd.menu(); if (sel === 0) save.crew = (save.crew + d + 3) % 3; if (sel === 1) save.opp = (save.opp + d + 3) % 3; if (sel === 2) save.diff = clamp(save.diff + d, 0, 4); if (sel === 3) save.size = 3 + (save.size - 3 + d + 3) % 3;
-        if (sel === 4) { save.court = (save.court + d + Arena.VENUES.length) % Arena.VENUES.length; Arena.set(Arena.scale, save.court); } }   // the new court shows behind the menu straight away
-      if (I.back) { state = 'title'; sel = 0; } else if (I.ok) { Snd.menu(600); if (sel === 5) startMatch(); else sel++; }
+      nav(5); const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);   // rows: match, court, difficulty, crews >, start
+      if (d) { Snd.menu(); if (sel === 0) save.size = 3 + (save.size - 3 + d + 3) % 3; if (sel === 2) save.diff = clamp(save.diff + d, 0, 4);
+        if (sel === 1) { save.court = (save.court + d + Arena.VENUES.length) % Arena.VENUES.length; Arena.set(Arena.scale, save.court); } }   // the new court shows behind the menu straight away
+      if (I.back) { state = 'title'; sel = 0; } else if (I.ok) { Snd.menu(600); if (sel === 4) startMatch(); else if (sel === 3) { state = 'crews'; sel = 0; } else sel++; }
     }
-    else if (state === 'help') { if (I.left || I.right) { helpTab = 1 - helpTab; Snd.menu(); } if (I.ok || I.back) { state = helpFrom; sel = 0; } }
+    else if (state === 'crews') {               // sub-menu: your crew and the opponent
+      nav(3); const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);
+      if (d) { Snd.menu(); if (sel === 0) save.crew = (save.crew + d + 3) % 3; if (sel === 1) save.opp = (save.opp + d + 3) % 3; }
+      if (I.back || (I.ok && sel === 2)) { Snd.menu(600); state = 'setup'; sel = 3; } else if (I.ok) { Snd.menu(600); sel++; }
+    }
+    else if (state === 'help') { if (I.left || I.right) { helpTab = 1 - helpTab; Snd.menu(); } if (I.ok || I.back) ret(); }
     else if (state === 'pause') {
-      nav(6);
+      nav(5);
       if (I.back) state = 'play';
-      else if (I.ok) { if (sel === 0) state = 'play'; else if (sel === 1) newMatch(); else if (sel === 2) { state = 'help'; helpFrom = 'pause'; } else if (sel === 3) { state = touch ? 'layout' : 'binds'; helpFrom = 'pause'; sel = 0; } else if (sel === 4) { save.cam = (save.cam + 1) % 3; persist(); } else toTitle(); }
+      else if (I.ok) { Snd.menu(600); if (sel === 0) state = 'play'; else if (sel === 1) newMatch(); else if (sel === 2) go('help', 'pause', 2); else if (sel === 3) { optFrom = 'pause'; go('options', 'pause', 3); } else toTitle(); }
     }
     else if (state === 'over') { if (I.ok) startMatch(); else if (I.back) toTitle(); }
     else if (I.back) { state = 'pause'; sel = 0; }
@@ -283,15 +296,24 @@
   const scoreLine = () => AI.crew[0].short + ' ' + score[0] + ' - ' + score[1] + ' ' + AI.crew[1].short;
   const centre = (s, y, sc = 1) => FONT.draw(hx, s, Math.round((VW - FONT.width(s, sc)) / 2), y, sc);
   function badge(crew, x, y, sc) { crew.badge.forEach((r, j) => { for (let i = 0; i < 9; i++) if (r[i] === '1') hx.fillRect(x + i * sc, y + j * sc, sc, sc); }); }
-  function menuBox(title, rows, y, w = 150) {   // a titled list with the selected row inverted
-    const x = Math.round((VW - w) / 2), h = rows.length * 12 + 24;
+  const HINT = () => touch ? 'STICK PICK   OK SELECT   X BACK' : 'W/S PICK   ENTER SELECT   ESC BACK', HINTV = () => touch ? 'STICK PICK   LEFT/RIGHT CHANGE   OK SELECT' : 'W/S PICK   A/D CHANGE   ENTER SELECT   ESC BACK';
+  function menuBox(title, rows, y, w = 170, hint = '', note = '') {   // a titled list, selected row inverted
+    // row: 'TEXT' (centred action), ['LABEL', 'VALUE'] (changes with left/right), ['LABEL', '>'] (opens a sub-menu), '' (gap)
+    w = Math.max(w, FONT.width(hint) + 24, FONT.width(note) + 24);
+    const x = Math.round((VW - w) / 2), gaps = rows.filter(r => r === '').length, h = (rows.length - gaps) * 13 + gaps * 6 + 24 + (note ? 14 : 0) + (hint ? 14 : 0);
     panel(x, y, w, h); hx.fillRect(x, y, w, 15); hx.fillStyle = WH; centre(title, y + 4); hx.fillStyle = BK;
-    rows.forEach((r, i) => {
-      const ry = y + 20 + i * 12;
-      if (i === sel) { hx.fillStyle = BK; hx.fillRect(x + 3, ry - 2, w - 6, 11); hx.fillStyle = WH; }
-      centre(r, ry); hx.fillStyle = BK;
-    });
+    let ry = y + 21, i = 0;
+    for (const r of rows) {
+      if (r === '') { ry += 6; continue; }
+      const on = i === sel; if (on) { hx.fillRect(x + 3, ry - 3, w - 6, 13); hx.fillStyle = WH; }
+      if (typeof r === 'string') centre(r, ry);
+      else { FONT.draw(hx, r[0], x + 10, ry); const v = r[1] === '>' ? '>' : on ? '< ' + r[1] + ' >' : r[1]; FONT.draw(hx, v, x + w - 10 - FONT.width(v), ry); }
+      hx.fillStyle = BK; ry += 13; i++;
+    }
+    if (note) { centre(note, ry + 4); ry += 14; }
+    if (hint) { hx.fillRect(x + 8, ry + 2, w - 16, 1); centre(hint, ry + 7); }
   }
+  function optionsMenu(y) { menuBox('OPTIONS', [['CAMERA', CAMS[save.cam][0]], [touch ? 'BUTTON LAYOUT' : 'CONTROLS', '>'], '', 'BACK'], y, 200, HINT()); }
   function tabs(on, ty) {                       // KEYBOARD / CONTROLLER tabs, A/D or left/right to switch
     ['KEYBOARD', 'CONTROLLER'].forEach((t, i) => {
       const tw = 90, tx = VW / 2 + (i ? 4 : -tw - 4);
@@ -315,40 +337,48 @@
   }
   function helpScreen() {
     const f = (k, t) => (k + '                ').slice(0, Math.max(16, k.length + 2)) + t;
-    const mk = (N, pad) => [f(pad ? 'LEFT STICK' : 'WASD / ARROWS', 'MOVE'), f(N('sprint'), 'SPRINT'), f(N('pass'), 'PASS TO THE TEAMMATE YOU AIM AT'), f(N('thru'), 'THROUGH PASS INTO SPACE FOR A RUNNER'), f(N('lob'), 'LOB: HOLD FOR MORE DISTANCE AND HEIGHT'),
-      f(N('shoot'), 'SHOOT: HOLD FOR MORE POWER AND HEIGHT'), 'NO BALL: ' + N('pass') + ' TACKLE, ' + N('lob') + ' SLIDE, ' + N('swap') + ' SWITCH', 'IN YOUR BOX ' + N('lob') + ': GOALIE DIVE, GRABS IT AT THEIR FEET', 'NO BALL, HOLD ' + N('thru') + ': YOUR GOALIE COMES OUT TO THE BALL',
-      f(N('trick'), 'TRICK: A DIFFERENT ONE EVERY PRESS'), '                PRESS AGAIN AS THE BALL DROPS TO JUGGLE', '', 'TRICKS FILL THE HYPE METER. WHEN IT IS FULL YOUR NEXT SHOT',  'IS A HYPE SHOT: VERY HARD TO SAVE AND WORTH 2 GOALS', '', pad ? 'START PAUSE     D-PAD + A FOR MENUS, B BACK' : 'ESC PAUSE       I INVERT COLOURS', 'CHANGE ANY BUTTON UNDER CONTROLS IN THE MENU'];
+    const mk = (N, pad) => ['#WITH THE BALL', f(pad ? 'LEFT STICK' : 'WASD / ARROWS', 'MOVE    ' + N('sprint') + ' SPRINT'), f(N('pass'), 'PASS TO THE TEAMMATE YOU AIM AT'), f(N('thru'), 'THROUGH PASS INTO SPACE FOR A RUNNER'), f(N('lob'), 'LOB: HOLD FOR MORE DISTANCE AND HEIGHT'),
+      f(N('shoot'), 'SHOOT: HOLD FOR MORE POWER AND HEIGHT'), f(N('trick'), 'TRICK. PRESS AGAIN AS IT DROPS TO JUGGLE'),
+      '#WITHOUT THE BALL', f(N('pass'), 'TACKLE'), f(N('lob'), 'SLIDE.  IN YOUR OWN BOX: GOALIE DIVE'), f(N('swap'), 'SWITCH PLAYER'), f('HOLD ' + N('thru'), 'YOUR GOALIE COMES OUT TO THE BALL'),
+      '#HYPE AND RULES', 'TRICKS FILL THE HYPE METER. FULL METER: NEXT SHOT IS A', 'HYPE SHOT, VERY HARD TO SAVE AND WORTH 2 GOALS.', 'FIRST TO 5 GOALS, OR AHEAD AFTER 4 MINUTES.',
+      pad ? 'START PAUSES.  CHANGE BUTTONS IN OPTIONS > CONTROLS.' : 'ESC PAUSES, I INVERTS COLOURS.  CHANGE KEYS IN OPTIONS.'];
     const KEYS = mk(KN, 0), PAD = mk(PN, 1);
-    const TOUCH = ['LEFT THUMB      MOVE. PUSH THE STICK ALL THE WAY TO SPRINT', 'PASS            TAP: PASS TO THE TEAMMATE YOU AIM AT', '                HOLD: LOB, HIGHER AND FURTHER THE LONGER YOU HOLD', 'THRU            THROUGH PASS INTO SPACE FOR A RUNNER', 'SHOOT           HOLD FOR MORE POWER AND HEIGHT', 'TRICK           A DIFFERENT TRICK EVERY PRESS',
-      '                PRESS AGAIN AS THE BALL DROPS TO JUGGLE', 'NO BALL         PASS TACKLES, SHOOT SLIDES, SWAP SWITCHES PLAYER', 'IN YOUR BOX     SHOOT IS A GOALIE DIVE', 'NO BALL         HOLD THRU: YOUR GOALIE COMES OUT TO THE BALL', '', 'TRICKS FILL THE HYPE METER. WHEN IT IS FULL YOUR NEXT SHOT', 'IS A HYPE SHOT: VERY HARD TO SAVE AND WORTH 2 GOALS'];
-    const L = touch ? TOUCH : helpTab ? PAD : KEYS, w = 372, x = Math.round((VW - w) / 2), y = 30; panel(x, y, w, L.length * 10 + 62);
+    const TOUCH = ['#WITH THE BALL', f('LEFT THUMB', 'MOVE. PUSH ALL THE WAY TO SPRINT'), f('PASS', 'TAP: PASS TO THE TEAMMATE YOU AIM AT'), f('', 'HOLD: LOB, HIGHER THE LONGER YOU HOLD'), f('THRU', 'THROUGH PASS INTO SPACE FOR A RUNNER'), f('SHOOT', 'HOLD FOR MORE POWER AND HEIGHT'), f('TRICK', 'PRESS AGAIN AS THE BALL DROPS TO JUGGLE'),
+      '#WITHOUT THE BALL', f('PASS', 'TACKLE'), f('SHOOT', 'SLIDE.  IN YOUR OWN BOX: GOALIE DIVE'), f('SWAP', 'SWITCH PLAYER'), f('HOLD THRU', 'YOUR GOALIE COMES OUT TO THE BALL'),
+      '#HYPE AND RULES', 'TRICKS FILL THE HYPE METER. FULL METER: NEXT SHOT IS A', 'HYPE SHOT, VERY HARD TO SAVE AND WORTH 2 GOALS.', 'FIRST TO 5 GOALS, OR AHEAD AFTER 4 MINUTES.'];
+    const L = touch ? TOUCH : helpTab ? PAD : KEYS, w = 372, x = Math.round((VW - w) / 2), top = touch ? 21 : 39, H = L.length * 10 + top + 26, y = Math.max(4, Math.round((VH - H) / 2)); panel(x, y, w, H);
     hx.fillRect(x, y, w, 15); hx.fillStyle = WH; centre('HOW TO PLAY', y + 4); hx.fillStyle = BK;
     if (!touch) tabs(helpTab, y + 19);
-    L.forEach((s, i) => FONT.draw(hx, s, x + 8, y + 39 + i * 10));
-    centre((touch ? 'OK OR BACK TO RETURN' : 'A/D SWITCH TAB    ENTER BACK') + '    FIRST TO 5, OR AHEAD AFTER 4 MIN', y + L.length * 10 + 46);
+    L.forEach((s, i) => { const ly = y + top + i * 10; if (s[0] === '#') { hx.fillRect(x + 6, ly - 2, w - 12, 10); hx.fillStyle = WH; FONT.draw(hx, s.slice(1), x + 9, ly); hx.fillStyle = BK; } else FONT.draw(hx, s, x + 9, ly); });
+    hx.fillRect(x + 8, y + H - 15, w - 16, 1); centre(touch ? 'OK OR X TO RETURN' : 'A/D SWITCH TAB    ENTER OR ESC BACK', y + H - 10);
   }
   function frontMenus() {
     if (state === 'help') return helpScreen();
     if (state === 'binds') return bindScreen();
     if (state === 'layout') return layoutScreen();
+    if (state === 'options') return optionsMenu(120);
     if (state === 'title') {
       const w = FONT.width('FOOTY', 6) + 28, x = Math.round((VW - w) / 2);
       panel(x, 40, w, 70); centre('FOOTY', 48, 6); centre('1-BIT STREET SOCCER', 96);
-      menuBox('MENU', ['QUICK MATCH', 'HOW TO PLAY', touch ? 'BUTTON LAYOUT' : 'CONTROLS', 'CAMERA: ' + CAMS[save.cam][0]], 120);
-      label('WINS ' + save.wins.reduce((a, b) => a + b, 0) + '    BEST COMBO ' + save.best, VW / 2, 206, 1);
+      menuBox('MENU', ['QUICK MATCH', 'HOW TO PLAY', 'OPTIONS'], 122, 170);
+      label('WINS ' + save.wins.reduce((a, b) => a + b, 0) + '    BEST COMBO ' + save.best, VW / 2, 194, 1);
       label(touch ? 'STICK PICK   OK SELECT' : 'W/S PICK   ENTER SELECT', VW / 2, VH - 36, 1);
       return;
     }
-    const w = 300, x = Math.round((VW - w) / 2), y = 27, c = AI.CREWS[save.crew], o = AI.CREWS[save.opp];   // quick match setup
-    panel(x, y, w, 250); hx.fillRect(x, y, w, 15); hx.fillStyle = WH; centre('QUICK MATCH', y + 4); hx.fillStyle = BK;
-    const row = (i, ry, text) => { if (i === sel) { hx.fillStyle = BK; hx.fillRect(x + 3, ry - 2, w - 6, 11); hx.fillStyle = WH; } centre(text, ry); hx.fillStyle = BK; };
-    row(0, y + 22, 'YOUR CREW   < ' + c.name + ' >'); badge(c, x + 14, y + 38, 3); FONT.draw(hx, c.style, x + 50, y + 40); FONT.draw(hx, c.blurb, x + 50, y + 50); FONT.draw(hx, 'WINS ' + save.wins[save.crew] + '   KIT: WHITE, BLACK ' + c.kitName, x + 50, y + 60);
-    row(1, y + 82, 'OPPONENT   < ' + o.name + ' >'); badge(o, x + 14, y + 98, 3); FONT.draw(hx, o.style, x + 50, y + 100); FONT.draw(hx, o.blurb, x + 50, y + 110); FONT.draw(hx, 'KIT: BLACK, WHITE ' + o.kitName, x + 50, y + 120);
-    row(2, y + 142, 'DIFFICULTY   < ' + DIFF[save.diff] + ' >');
-    row(3, y + 160, 'MATCH   < ' + { 3: '3 V 3  FLOATING GOALIE', 4: '4 V 4  FLOATING GOALIE, BIGGER COURT', 5: '5 V 5  FIXED KEEPERS, BIGGEST COURT' }[save.size] + ' >');
-    row(4, y + 178, 'COURT   < ' + Arena.VENUES[save.court] + ' >');
-    row(5, y + 198, 'START MATCH');
-    centre(touch ? 'STICK UP/DOWN PICK   LEFT/RIGHT CHANGE   OK SELECT' : 'W/S PICK   A/D CHANGE   ENTER SELECT   ESC BACK', y + 226);
+    const c = AI.CREWS[save.crew], o = AI.CREWS[save.opp];
+    if (state === 'crews') {                    // crews sub-menu
+      const w = 300, x = Math.round((VW - w) / 2), y = 50;
+      panel(x, y, w, 196); hx.fillRect(x, y, w, 15); hx.fillStyle = WH; centre('CREWS', y + 4); hx.fillStyle = BK;
+      const row = (i, ry, text) => { if (i === sel) { hx.fillRect(x + 3, ry - 3, w - 6, 13); hx.fillStyle = WH; } centre(text, ry); hx.fillStyle = BK; };
+      row(0, y + 22, 'YOUR CREW   ' + (sel === 0 ? '< ' + c.name + ' >' : c.name)); badge(c, x + 14, y + 38, 3); FONT.draw(hx, c.style, x + 50, y + 40); FONT.draw(hx, c.blurb, x + 50, y + 50); FONT.draw(hx, 'WINS ' + save.wins[save.crew] + '   KIT: WHITE, BLACK ' + c.kitName, x + 50, y + 60);
+      row(1, y + 82, 'OPPONENT   ' + (sel === 1 ? '< ' + o.name + ' >' : o.name)); badge(o, x + 14, y + 98, 3); FONT.draw(hx, o.style, x + 50, y + 100); FONT.draw(hx, o.blurb, x + 50, y + 110); FONT.draw(hx, 'KIT: BLACK, WHITE ' + o.kitName, x + 50, y + 120);
+      row(2, y + 146, 'DONE');
+      hx.fillRect(x + 8, y + 167, w - 16, 1); centre(HINTV(), y + 174);
+      return;
+    }
+    const MATCH = { 3: ['3 V 3', 'FLOATING GOALIE, SMALL COURT'], 4: ['4 V 4', 'FLOATING GOALIE, BIGGER COURT'], 5: ['5 V 5', 'FIXED KEEPERS, BIGGEST COURT'] }[save.size];
+    const NOTE = [MATCH[1], [1, 4, 5, 6].includes(save.court) ? 'PLAYED UNDER THE LIGHTS' : 'PLAYED IN DAYLIGHT', 'HOW GOOD THE OTHER CREW PLAYS', c.short + ' VS ' + o.short + '.  OK TO CHANGE', 'FIRST TO 5, OR AHEAD AFTER 4 MIN'][sel];
+    menuBox('QUICK MATCH', [['MATCH', MATCH[0]], ['COURT', Arena.VENUES[save.court]], ['DIFFICULTY', DIFF[save.diff]], ['CREWS', '>'], '', 'START MATCH'], 70, 300, HINTV(), NOTE);
   }
   function resultScreen() {
     const w = 250, h = 128, x = Math.round((VW - w) / 2), y = 70, win = score[0] > score[1];
@@ -368,7 +398,8 @@
     label(scoreLine(), VW / 2, 4, 1);
     const sec = Math.ceil(clock); label(ot ? 'OVERTIME' : Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'), VW / 2, 19, 1);
     if (state === 'over') return dark(resultScreen);
-    if (state === 'pause') return dark(() => menuBox('PAUSED', ['RESUME', 'RESTART MATCH', 'HOW TO PLAY', touch ? 'BUTTON LAYOUT' : 'CONTROLS', 'CAMERA: ' + CAMS[save.cam][0], 'QUIT TO TITLE'], 90));
+    if (state === 'pause') return dark(() => menuBox('PAUSED', ['RESUME', 'RESTART MATCH', '', 'HOW TO PLAY', 'OPTIONS', '', 'QUIT TO TITLE'], 80, 170, HINT()));
+    if (state === 'options') return dark(() => optionsMenu(90));
     if (state === 'help') return dark(helpScreen);
     if (state === 'binds') return dark(bindScreen);
     if (state === 'layout') return dark(layoutScreen);
