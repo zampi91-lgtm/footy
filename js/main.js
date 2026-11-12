@@ -36,22 +36,22 @@
   const BALL = (x, y, r) => '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"/><circle cx="' + x + '" cy="' + y + '" r="' + r * 0.32 + '" fill="currentColor"/>';
   const BOOT = '<path d="M5 3v10l8 3c2.5.8 4 1.8 4 4.5H5z"/>', SLIDE = '<circle cx="5.5" cy="7" r="2.3"/><path d="M7 10l6 6h8M13 16l-4 3M2 21.5h20"/>';
   const GLOVE = '<path d="M7 21v-7l-2.5-3 1.6-1.6L9 12V5.5h2.3V10h1V4h2.4v6h1V5.5H18V15c0 3.5-2 6-5 6z"/>';
-  const SW = '<path d="M20 7H4M8 3L4 7l4 4M4 17h16M16 13l4 4-4 4"/>';
   const ICON = {
     pass: [BALL(5, 15, 3.4) + '<path d="M11 15h10M17 11l4 4-4 4"/>', BOOT + BALL(20, 9, 2.6), BOOT + BALL(20, 9, 2.6)],                 // pass / tackle
     thru: [BALL(4.5, 15, 3.2) + '<path d="M10 9l6 6-6 6M15 9l6 6-6 6"/>', '<path d="M2 20V6h8v14"/><path d="M12 13h9M17 9l4 4-4 4"/>', '<path d="M2 20V6h8v14"/><path d="M12 13h9M17 9l4 4-4 4"/>'],   // through pass / goalie out
     shoot: ['<path d="M2 20V4h20v16M2 9h20M8 4v5M16 4v5"/>' + BALL(12, 15, 3.6), SLIDE, GLOVE],                                         // shoot / slide / dive
     trick: [BALL(12, 16, 4) + '<path d="M4 11a8 8 0 0 1 16 0M17 8l3 3 2-4"/>', '', ''],                                              // trick (nothing to do without the ball)
-    swap: [BALL(4.5, 18, 3) + '<path d="M5 12C7 3 17 3 20 12M16.5 10.5L20 12l1.5-3.5"/>', SW, SW],                              // lob with the ball, switch player without it
+    lob: [BALL(4.5, 18, 3) + '<path d="M5 12C7 3 17 3 20 12M16.5 10.5L20 12l1.5-3.5"/>', SLIDE, GLOVE],                              // lob / slide / dive
+    swap: '<path d="M20 7H4M8 3L4 7l4 4M4 17h16M16 13l4 4-4 4"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
     ok: '<path d="M4 12.5l5 5L20 6.5"/>',
     back: '<path d="M5 5l14 14M19 5L5 19"/>',
   };
   // a short word under each icon; it changes with the mode like the icon does
-  const LBL = { pass: ['PASS', 'TACKLE', 'TACKLE'], thru: ['THRU', 'GK OUT', 'GK OUT'], shoot: ['SHOOT', 'SLIDE', 'DIVE'], trick: ['TRICK', '', ''], swap: ['LOB', 'SWAP', 'SWAP'], pause: '', ok: 'OK', back: 'BACK' };
+  const LBL = { pass: ['PASS', 'TACKLE', 'TACKLE'], thru: ['THRU', 'GK OUT', 'GK OUT'], shoot: ['SHOOT', 'SLIDE', 'DIVE'], trick: ['TRICK', '', ''], lob: ['LOB', 'SLIDE', 'DIVE'], swap: 'SWAP', pause: '', ok: 'OK', back: 'BACK' };
   const svg = (a, m) => '<svg viewBox="0 0 24 24">' + (Array.isArray(ICON[a]) ? ICON[a][m] : ICON[a]) + '</svg>' + (LBL[a] && (Array.isArray(LBL[a]) ? LBL[a][m] : LBL[a]) ? '<b>' + (Array.isArray(LBL[a]) ? LBL[a][m] : LBL[a]) + '</b>' : '');
   let tMode = 0, lobFill = 0;
-  const DEF_L = { shoot: [0.762, 0.5], thru: [0.884, 0.451], trick: [0.663, 0.652], swap: [0.859, 0.703], pass: [0.749, 0.826] }, DEF_B = 0.9;   // erick's own layout (2026-11-12) is the default
+  const DEF_L = { shoot: [0.762, 0.5], thru: [0.884, 0.451], trick: [0.663, 0.652], swap: [0.859, 0.703], pass: [0.749, 0.826], lob: [0.645, 0.86] }, DEF_B = 0.9;   // erick's own layout (2026-11-12) is the default
   function applyLayout() {                      // saved button positions (fractions of the screen) and size
     for (const a in tEls) {
       const el = tEls[a], p = save.layout[a] || DEF_L[a], st = el.style, sc = 'scale(' + save.bsize + ')';
@@ -65,7 +65,7 @@
     const root = document.createElement('div'); root.id = 'touch';
     const zone = document.createElement('div'), base = document.createElement('div'), knob = document.createElement('div');
     zone.id = 'tzone'; base.id = 'tbase'; knob.id = 'tknob'; base.appendChild(knob); zone.appendChild(base); root.appendChild(zone);
-    const R = () => innerHeight * 0.175, end = e => { if (e.pointerId !== stick.id) return; stick.id = -1; stick.x = stick.z = 0; base.style.left = base.style.top = base.style.opacity = knob.style.transform = ''; };
+    const R = () => innerHeight * 0.14, end = e => { if (e.pointerId !== stick.id) return; stick.id = -1; stick.x = stick.z = 0; base.style.left = base.style.top = base.style.opacity = knob.style.transform = ''; };
     zone.addEventListener('pointerdown', e => { if (stick.id >= 0) return; stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY; base.style.opacity = 1; base.style.left = e.clientX + 'px'; base.style.top = e.clientY + 'px'; knob.style.transform = ''; Snd.init(); });
     zone.addEventListener('pointermove', e => {
       if (e.pointerId !== stick.id) return;
@@ -73,7 +73,7 @@
       stick.x = Math.abs(x) < 0.15 ? 0 : x; stick.z = Math.abs(z) < 0.15 ? 0 : z; knob.style.transform = 'translate(' + x * R() + 'px,' + z * R() + 'px)';
     });
     zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
-    for (const [a, text, grp] of [['pass', 'PASS', 'g'], ['shoot', 'SHOOT', 'g'], ['thru', 'THRU', 'g'], ['trick', 'TRICK', 'g'], ['swap', 'LOB', 'g'], ['pause', 'II', 'g'], ['ok', 'OK', 'm'], ['back', 'BACK', 'm']]) {
+    for (const [a, text, grp] of [['pass', 'PASS', 'g'], ['shoot', 'SHOOT', 'g'], ['thru', 'THRU', 'g'], ['trick', 'TRICK', 'g'], ['lob', 'LOB', 'g'], ['swap', 'SWAP', 'g'], ['pause', 'II', 'g'], ['ok', 'OK', 'm'], ['back', 'BACK', 'm']]) {
       const el = document.createElement('div'); el.className = 'tb ' + grp; el.id = 't-' + a; el.innerHTML = svg(a, 0); el.setAttribute('aria-label', text); root.appendChild(el); tEls[a] = el;
       const up = () => { keys['T_' + a] = false; el.classList.remove('on'); if (drag === a) drag = null; };
       el.addEventListener('pointermove', e => { if (drag !== a) return; save.layout[a] = [clamp(e.clientX / innerWidth, 0.04, 0.96), clamp(e.clientY / innerHeight, 0.08, 0.92)]; applyLayout(); });
@@ -103,8 +103,7 @@
     if (tm > 0.6 && stick.prev <= 0.6) { if (Math.abs(stick.z) > Math.abs(stick.x)) I[stick.z < 0 ? 'up' : 'down'] = true; else I[stick.x < 0 ? 'left' : 'right'] = true; }   // a stick flick moves through menus
     stick.prev = tm;
     I.keyNew = lastKey; lastKey = null; I.padNew = -1; for (let i = 0; i < 12; i++) if (e(i)) { I.padNew = i; break; }
-    const onBall = me && Ball.owner === me;   // the touch swap button is the lob button while you have the ball
-    if (pressed[save.keys.swap] || e(save.pad.swap) || (pressed.T_swap && !onBall)) I.swap = true;
+    if (kp('swap') || e(save.pad.swap)) I.swap = true;
     if (kp('trick') || e(save.pad.trick)) I.trickP = true;
     const kx = (pressed.KeyD || pressed.ArrowRight ? 1 : 0) - (pressed.KeyA || pressed.ArrowLeft ? 1 : 0), kz = (pressed.KeyS || pressed.ArrowDown ? 1 : 0) - (pressed.KeyW || pressed.ArrowUp ? 1 : 0);
     const sm = Math.hypot(ax(0), ax(1));
@@ -115,8 +114,7 @@
     rPrev = rm;
     if (kp('thru') || e(save.pad.thru)) I.thru = true;
     I.thruHeld = kd('thru') || pb('thru');
-    const held = { pass: kd('pass') || kp('pass') || pb('pass'), lob: kd('lob') || kp('lob') || pb('lob') || (onBall && (keys.T_swap || pressed.T_swap)),
-      shoot: kd('shoot') || kp('shoot') || pb('shoot') };   // 'pressed' catches taps shorter than a frame
+    const held = { pass: kd('pass') || kp('pass') || pb('pass'), lob: kd('lob') || kp('lob') || pb('lob'), shoot: kd('shoot') || kp('shoot') || pb('shoot') };   // 'pressed' catches taps shorter than a frame
     for (const k in held) {                     // each kick button reports: just pressed, still held, just released
       if (held[k] && !I[k + 'Held']) I[k] = true;
       if (!held[k] && I[k + 'Held']) I[k + 'Rel'] = true;
@@ -346,7 +344,7 @@
       pad ? 'START PAUSES.  CHANGE BUTTONS IN OPTIONS > CONTROLS.' : 'ESC PAUSES, I INVERTS COLOURS.  CHANGE KEYS IN OPTIONS.'];
     const KEYS = mk(KN, 0), PAD = mk(PN, 1);
     const TOUCH = ['#WITH THE BALL', f('LEFT THUMB', 'MOVE. PUSH ALL THE WAY TO SPRINT'), f('PASS', 'PASS TO THE TEAMMATE YOU AIM AT'), f('LOB', 'HOLD: HIGHER AND FURTHER THE LONGER YOU HOLD'), f('THRU', 'THROUGH PASS INTO SPACE FOR A RUNNER'), f('SHOOT', 'HOLD FOR MORE POWER AND HEIGHT'), f('TRICK', 'PRESS AGAIN AS THE BALL DROPS TO JUGGLE'),
-      '#WITHOUT THE BALL', f('PASS', 'TACKLE'), f('SHOOT', 'SLIDE.  IN YOUR OWN BOX: GOALIE DIVE'), f('SWAP', 'SWITCH PLAYER (SAME BUTTON AS LOB)'), f('HOLD THRU', 'YOUR GOALIE COMES OUT TO THE BALL'),
+      '#WITHOUT THE BALL', f('PASS', 'TACKLE'), f('SHOOT / LOB', 'SLIDE.  IN YOUR OWN BOX: GOALIE DIVE'), f('SWAP', 'SWITCH PLAYER'), f('HOLD THRU', 'YOUR GOALIE COMES OUT TO THE BALL'),
       '#HYPE AND RULES', 'TRICKS FILL THE HYPE METER. FULL METER: NEXT SHOT IS A', 'HYPE SHOT, VERY HARD TO SAVE AND WORTH 2 GOALS.', 'FIRST TO 5 GOALS, OR AHEAD AFTER 4 MINUTES.'];
     const L = touch ? TOUCH : helpTab ? PAD : KEYS, w = 372, x = Math.round((VW - w) / 2), top = touch ? 21 : 39, H = L.length * 10 + top + 26, y = Math.max(4, Math.round((VH - H) / 2)); panel(x, y, w, H);
     hx.fillRect(x, y, w, 15); hx.fillStyle = WH; centre('HOW TO PLAY', y + 4); hx.fillStyle = BK;
@@ -476,8 +474,8 @@
     requestAnimationFrame(frame);
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
     readInput();
-    if (touch && tEls.swap) { const c = kind === 'lob' ? Math.round(charge * 100) : 0; if (c !== lobFill) { lobFill = c; tEls.swap.style.background = c ? 'linear-gradient(to top, var(--fg) ' + c + '%, rgba(0,0,0,0.55) ' + c + '%)' : ''; } }   // the lob button fills up as it charges
-    if (touch) { const m = Ball.owner === me ? 0 : me && Player.keeping(me) ? 2 : 1; if (m !== tMode) { tMode = m; for (const a of ['pass', 'thru', 'shoot', 'trick', 'swap']) { tEls[a].innerHTML = svg(a, m); tEls[a].style.opacity = a === 'trick' && m ? 0.3 : ''; } } }
+    if (touch && tEls.lob) { const c = kind === 'lob' ? Math.round(charge * 100) : 0; if (c !== lobFill) { lobFill = c; tEls.lob.style.background = c ? 'linear-gradient(to top, var(--fg) ' + c + '%, rgba(0,0,0,0.55) ' + c + '%)' : ''; } }   // the lob button fills up as it charges
+    if (touch) { const m = Ball.owner === me ? 0 : me && Player.keeping(me) ? 2 : 1; if (m !== tMode) { tMode = m; for (const a of ['pass', 'thru', 'shoot', 'trick', 'lob']) { tEls[a].innerHTML = svg(a, m); tEls[a].style.opacity = a === 'trick' && m ? 0.3 : ''; } } }
     if (touch) { const c = state === 'layout' ? 'edit' : state === 'play' && !attract ? 'play' : 'menu'; if (document.body.className !== c) document.body.className = c; }
     if (I.invert) invert = !invert;
     menus();
