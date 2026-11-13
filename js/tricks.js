@@ -23,7 +23,8 @@ const Tricks = (() => {
     const B = Ball, fx = Math.sin(p.yaw), fz = Math.cos(p.yaw), sp = Math.hypot(p.vx, p.vz);
     if (name === 'STEP-OVER') { p.vx += fz * side * 5; p.vz -= fx * side * 5; p.trick = 'step'; p.trickT = 0.3; p.kickT = Player.KICK; fake(p, 3, 0.5); }
     else if (name === 'DRAG-BACK') { p.yaw += Math.PI; p.vx = -fx * 3.5; p.vz = -fz * 3.5; B.x = p.x - fx * 0.6; B.z = p.z - fz * 0.6; p.trick = 'drag'; p.trickT = 0.3; fake(p, 2.5, 0.4); }
-    else if (name === 'SPIN ROLL') { p.vx = fx * 7; p.vz = fz * 7; p.trick = 'spin'; p.trickT = 0.45; fake(p, 2.4, 0.55); }
+    else if (name === 'SPIN ROLL') { const v = Math.min(sp, Player.WALK); p.vx = fx * v; p.vz = fz * v;   // spin on the spot at your pace, no forward dash (it read as a slide)
+      p.trick = 'spin'; p.trickT = 0.45; fake(p, 2.4, 0.55); }
     else if (name === 'FLICK-UP') { B.jug = true; B.vy = 6.2; B.y = B.R + 0.02; jn = 0; }
     else if (name === 'JUGGLE') { B.vy = 5.6; jn++; }
     else if (name === 'RAINBOW') { B.kick(p, fx, fz, 5.5 + sp, 7.5); B.cool = 0.2; p.trick = 'step'; p.trickT = 0.3; fake(p, 2.6, 0.5); }

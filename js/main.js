@@ -59,18 +59,19 @@
       else { st.left = st.top = st.right = st.bottom = ''; st.transform = el.classList.contains('g') ? sc : ''; }
     }
   }
-  let touch = false; const stick = { id: -1, ox: 0, oy: 0, x: 0, z: 0, prev: 0 };
+  let touch = false; const stick = { id: -1, ox: 0, oy: 0, x: 0, z: 0, raw: 0, prev: 0 };
   function touchUI() {
     if (touch) return; touch = true; if (!(save.mc >= 1)) { save.mc = 1; save.cam = 2; persist(); }   // phones start on the Close camera (once)
     const root = document.createElement('div'); root.id = 'touch';
     const zone = document.createElement('div'), base = document.createElement('div'), knob = document.createElement('div');
     zone.id = 'tzone'; base.id = 'tbase'; knob.id = 'tknob'; base.appendChild(knob); zone.appendChild(base); root.appendChild(zone);
-    const R = () => innerHeight * 0.14, end = e => { if (e.pointerId !== stick.id) return; stick.id = -1; stick.x = stick.z = 0; base.style.left = base.style.top = base.style.opacity = knob.style.transform = ''; };
+    const R = () => innerHeight * SENS[save.sens][1], VR = () => innerHeight * 0.14, end = e => { if (e.pointerId !== stick.id) return; stick.id = -1; stick.x = stick.z = stick.raw = 0; base.style.left = base.style.top = base.style.opacity = knob.style.transform = ''; };
     zone.addEventListener('pointerdown', e => { if (stick.id >= 0) return; stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY; base.style.opacity = 1; base.style.left = e.clientX + 'px'; base.style.top = e.clientY + 'px'; knob.style.transform = ''; Snd.init(); });
     zone.addEventListener('pointermove', e => {
       if (e.pointerId !== stick.id) return;
       let x = (e.clientX - stick.ox) / R(), z = (e.clientY - stick.oy) / R(); const l = Math.hypot(x, z); if (l > 1) { x /= l; z /= l; }
-      stick.x = Math.abs(x) < 0.15 ? 0 : x; stick.z = Math.abs(z) < 0.15 ? 0 : z; knob.style.transform = 'translate(' + x * R() + 'px,' + z * R() + 'px)';
+      const r = Math.min(1, l), o = r < 0.18 ? 0 : Math.pow((r - 0.18) / 0.82, 1.3);   // dead zone, then a curve: a light push jogs, only the edge runs flat out
+      stick.raw = r; stick.x = r ? x / r * o : 0; stick.z = r ? z / r * o : 0; knob.style.transform = 'translate(' + x * VR() + 'px,' + z * VR() + 'px)';
     });
     zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
     for (const [a, text, grp] of [['pass', 'PASS', 'g'], ['shoot', 'SHOOT', 'g'], ['thru', 'THRU', 'g'], ['trick', 'TRICK', 'g'], ['lob', 'LOB', 'g'], ['swap', 'SWAP', 'g'], ['pause', 'II', 'g'], ['ok', 'OK', 'm'], ['back', 'BACK', 'm']]) {
@@ -93,8 +94,8 @@
     const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
     I.mx = mx; I.mz = mz;
     const kd = a => keys[save.keys[a]] || keys['T_' + a] || (save.keys[a] === 'ShiftLeft' && keys.ShiftRight), kp = a => pressed[save.keys[a]] || pressed['T_' + a], pb = a => b(save.pad[a]);
-    const tm = Math.hypot(stick.x, stick.z);
-    I.sprint = kd('sprint') || pb('sprint') || tm > 0.92;      // touch: push the stick all the way to sprint
+    const tm = stick.raw;
+    I.sprint = kd('sprint') || pb('sprint') || tm > 0.985;     // touch: push the stick right to the edge of its travel to sprint
     I.invert = pressed.KeyI;
     const e = i => b(i) && !gpPrev[i];
     I.ok = pressed.Enter || pressed.Space || (state !== 'play' && (pressed.KeyJ || e(0)));
@@ -153,10 +154,10 @@
     save.best = Math.max(save.best, Math.round(Tricks.best)); persist();
   }
   // saved between sessions: wins per crew, best combo, and the last match settings
-  const save = { wins: [0, 0, 0], best: 0, crew: 0, opp: 1, diff: 2, size: 5, court: 1, cam: 0, bsize: 1, layout: {}, keys: {}, pad: {} }, CAMS = [['BROADCAST', 11, 18.5], ['HIGH', 17, 13.5], ['CLOSE', 7.5, 15]], DIFF = ['AVACA', 'SUAVE', 'TRANQUI', 'PONTE PILAS', 'JODIDO'], SKILL = [0.63, 0.7, 0.77, 0.835, 0.9];   // old Easy/Normal/Hard range spread over five levels
+  const save = { wins: [0, 0, 0], best: 0, crew: 0, opp: 1, diff: 2, size: 5, court: 1, cam: 0, sens: 2, bsize: 1, layout: {}, keys: {}, pad: {} }, SENS = [['1 LOWEST', 0.3], ['2 LOW', 0.26], ['3 MEDIUM', 0.22], ['4 HIGH', 0.19], ['5 HIGHEST', 0.16]], CAMS = [['BROADCAST', 11, 18.5], ['HIGH', 17, 13.5], ['CLOSE', 7.5, 15]], DIFF = ['AVACA', 'SUAVE', 'TRANQUI', 'PONTE PILAS', 'JODIDO'], SKILL = [0.63, 0.7, 0.77, 0.835, 0.9];   // old Easy/Normal/Hard range spread over five levels
   try { Object.assign(save, JSON.parse(localStorage.getItem('futbol1bit') || '{}')); } catch (e) { /* storage unavailable */ }
   save.keys = Object.assign({}, DEF_K, save.keys); save.pad = Object.assign({}, DEF_P, save.pad); save.court = (save.court | 0) % Arena.VENUES.length; if (!(save.v >= 2)) save.diff = 2; if (!(save.v >= 3)) { save.v = 3; save.court = 1; } if (!(save.lv >= 3)) { save.lv = 3; save.layout = {}; save.bsize = DEF_B; }   // new default button layout (thumb arc): clear old saved positions once   // one-time resets when the defaults changed save.diff = clamp(save.diff | 0, 0, 4); if (![3, 4, 5].includes(save.size)) save.size = 5;
-  save.cam = (save.cam | 0) % 3; save.bsize = +save.bsize || DEF_B; save.layout = save.layout || {};
+  save.cam = (save.cam | 0) % 3; save.sens = clamp(save.sens == null ? 2 : save.sens | 0, 0, 4); save.bsize = +save.bsize || DEF_B; save.layout = save.layout || {};
   const persist = () => { try { localStorage.setItem('futbol1bit', JSON.stringify(save)); } catch (e) { /* ignore */ } };
   persist();                                    // keep the one-time resets above
   function startMatch() {
@@ -171,10 +172,11 @@
     const ret = () => { state = helpFrom; sel = retSel; if (state === 'options') helpFrom = optFrom, retSel = optFrom === 'title' ? 2 : 3; };
     if (state === 'title') { nav(3); if (I.ok) { Snd.menu(600); if (sel === 0) { state = 'setup'; sel = 4; } else if (sel === 1) go('help', 'title', 1); else { optFrom = 'title'; go('options', 'title', 2); } } }
     else if (state === 'options') {             // camera + controls, shared by the title and pause menus
-      nav(3); const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);
+      nav(touch ? 4 : 3); const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);
       if (d && sel === 0) { save.cam = (save.cam + d + 3) % 3; persist(); Snd.menu(); }
+      if (d && touch && sel === 2) { save.sens = clamp(save.sens + d, 0, 4); persist(); Snd.menu(); }   // stick sensitivity (touch)
       if (I.back) { Snd.menu(); ret(); }
-      else if (I.ok) { Snd.menu(600); if (sel === 0) { save.cam = (save.cam + 1) % 3; persist(); } else if (sel === 1) go(touch ? 'layout' : 'binds', 'options', 1); else ret(); }
+      else if (I.ok) { Snd.menu(600); if (sel === 0) { save.cam = (save.cam + 1) % 3; persist(); } else if (sel === 1) go(touch ? 'layout' : 'binds', 'options', 1); else if (touch && sel === 2) { save.sens = (save.sens + 1) % 5; persist(); } else ret(); }
     }
     else if (state === 'layout') {              // touch: drag the buttons, stick left / right for size
       const d = (I.right ? 1 : 0) - (I.left ? 1 : 0);
@@ -315,7 +317,7 @@
     if (note) { centre(note, ry + 4); ry += 14; }
     if (hint) { hx.fillRect(x + 8, ry + 2, w - 16, 1); centre(hint, ry + 7); }
   }
-  function optionsMenu(y) { menuBox('OPTIONS', [['CAMERA', CAMS[save.cam][0]], [touch ? 'BUTTON LAYOUT' : 'CONTROLS', '>'], '', 'BACK'], y, 200, HINT()); }
+  function optionsMenu(y) { menuBox('OPTIONS', [['CAMERA', CAMS[save.cam][0]], [touch ? 'BUTTON LAYOUT' : 'CONTROLS', '>'], ...(touch ? [['STICK SENSITIVITY', SENS[save.sens][0]]] : []), '', 'BACK'], y, 200, HINT()); }
   function tabs(on, ty) {                       // KEYBOARD / CONTROLLER tabs, A/D or left/right to switch
     ['KEYBOARD', 'CONTROLLER'].forEach((t, i) => {
       const tw = 90, tx = VW / 2 + (i ? 4 : -tw - 4);
